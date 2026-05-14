@@ -14,7 +14,7 @@
 "use strict";
 
 var evohome = require("./lib/evohome.js");
-var Service, Characteristic;
+var Service, Characteristic, Formats, Units, Perms;
 var config;
 var FakeGatoHistoryService;
 const moment = require("moment");
@@ -25,14 +25,17 @@ module.exports = function (homebridge) {
 
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
+  Formats = homebridge.hap.Formats;
+  Units = homebridge.hap.Units;
+  Perms = homebridge.hap.Perms;
 
   CustomCharacteristic.ValvePosition = class ValvePosition extends Characteristic {
     constructor() {
       super("Valve position", ValvePosition.UUID);
       this.setProps({
-        format: Characteristic.Formats.UINT8,
-        unit: Characteristic.Units.PERCENTAGE,
-        perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
+        format: Formats.UINT8,
+        unit: Units.PERCENTAGE,
+        perms: [Perms.READ, Perms.NOTIFY],
       });
       this.value = this.getDefaultValue();
     }
@@ -45,8 +48,8 @@ module.exports = function (homebridge) {
       constructor() {
         super("Program command", ProgramCommand.UUID);
         this.setProps({
-          format: Characteristic.Formats.DATA,
-          perms: [Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY],
+          format: Formats.DATA,
+          perms: [Perms.WRITE, Perms.NOTIFY],
         });
         this.value = this.getDefaultValue();
       }
@@ -58,8 +61,8 @@ module.exports = function (homebridge) {
     constructor() {
       super("Program data", ProgramData.UUID);
       this.setProps({
-        format: Characteristic.Formats.DATA,
-        perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
+        format: Formats.DATA,
+        perms: [Perms.READ, Perms.NOTIFY],
       });
       this.value = this.getDefaultValue();
     }
