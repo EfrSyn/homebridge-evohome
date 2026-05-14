@@ -17,7 +17,6 @@ var evohome = require("./lib/evohome.js");
 var Service, Characteristic;
 var config;
 var FakeGatoHistoryService;
-var inherits = require("util").inherits;
 const moment = require("moment");
 var CustomCharacteristic = {};
 
@@ -27,48 +26,46 @@ module.exports = function (homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
 
-  CustomCharacteristic.ValvePosition = function () {
-    Characteristic.call(
-      this,
-      "Valve position",
-      "E863F12E-079E-48FF-8F27-9C2605A29F52"
-    );
-    this.setProps({
-      format: Characteristic.Formats.UINT8,
-      unit: Characteristic.Units.PERCENTAGE,
-      perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
-    });
-    this.value = this.getDefaultValue();
+  CustomCharacteristic.ValvePosition = class ValvePosition extends Characteristic {
+    constructor() {
+      super("Valve position", ValvePosition.UUID);
+      this.setProps({
+        format: Characteristic.Formats.UINT8,
+        unit: Characteristic.Units.PERCENTAGE,
+        perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
+      });
+      this.value = this.getDefaultValue();
+    }
   };
-  inherits(CustomCharacteristic.ValvePosition, Characteristic);
+  CustomCharacteristic.ValvePosition.UUID =
+    "E863F12E-079E-48FF-8F27-9C2605A29F52";
 
-  CustomCharacteristic.ProgramCommand = function () {
-    Characteristic.call(
-      this,
-      "Program command",
-      "E863F12C-079E-48FF-8F27-9C2605A29F52"
-    );
-    this.setProps({
-      format: Characteristic.Formats.DATA,
-      perms: [Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY],
-    });
-    this.value = this.getDefaultValue();
-  };
-  inherits(CustomCharacteristic.ProgramCommand, Characteristic);
+  CustomCharacteristic.ProgramCommand =
+    class ProgramCommand extends Characteristic {
+      constructor() {
+        super("Program command", ProgramCommand.UUID);
+        this.setProps({
+          format: Characteristic.Formats.DATA,
+          perms: [Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY],
+        });
+        this.value = this.getDefaultValue();
+      }
+    };
+  CustomCharacteristic.ProgramCommand.UUID =
+    "E863F12C-079E-48FF-8F27-9C2605A29F52";
 
-  CustomCharacteristic.ProgramData = function () {
-    Characteristic.call(
-      this,
-      "Program data",
-      "E863F12F-079E-48FF-8F27-9C2605A29F52"
-    );
-    this.setProps({
-      format: Characteristic.Formats.DATA,
-      perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
-    });
-    this.value = this.getDefaultValue();
+  CustomCharacteristic.ProgramData = class ProgramData extends Characteristic {
+    constructor() {
+      super("Program data", ProgramData.UUID);
+      this.setProps({
+        format: Characteristic.Formats.DATA,
+        perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY],
+      });
+      this.value = this.getDefaultValue();
+    }
   };
-  inherits(CustomCharacteristic.ProgramData, Characteristic);
+  CustomCharacteristic.ProgramData.UUID =
+    "E863F12F-079E-48FF-8F27-9C2605A29F52";
 
   homebridge.registerPlatform("homebridge-evohome", "Evohome", EvohomePlatform);
 };
