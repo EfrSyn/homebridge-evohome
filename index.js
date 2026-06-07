@@ -939,6 +939,31 @@ function getValidTemperature(log, accessoryName, value) {
   return validTemperature;
 }
 
+function getValidHotWaterTemperature(log, accessoryName, value) {
+  var validTemperature = toFiniteNumber(value);
+
+  if (validTemperature === null) {
+    if (log && typeof log.warn === "function") {
+      log.warn(
+        "Ignoring missing/invalid hot water temperature for accessory " +
+          accessoryName +
+          ": " +
+          value
+      );
+    } else if (log) {
+      log(
+        "Ignoring missing/invalid hot water temperature for accessory " +
+          accessoryName +
+          ": " +
+          value
+      );
+    }
+    return 1;
+  }
+
+  return validTemperature;
+}
+
 EvohomeThermostatAccessory.prototype = {
   bindPlatformAccessory: function (platformAccessory) {
     this.platformAccessory = platformAccessory;
@@ -1407,7 +1432,7 @@ function EvohomeDhwAccessory(
   this.model = "domesticHotWater";
   this.username = username;
   this.password = password;
-  this.currentTemperature = -99;
+  this.currentTemperature = null;
   this.currentState = true;
 
   // Enable logging of temperature
@@ -1468,7 +1493,11 @@ EvohomeDhwAccessory.prototype = {
     session
       .getHotWater(this.dhwId)
       .then(function (dhw) {
-        that.currentTemperature = dhw.temperatureStatus.temperature;
+        that.currentTemperature = getValidHotWaterTemperature(
+          that.log,
+          that.name,
+          dhw && dhw.temperatureStatus && dhw.temperatureStatus.temperature
+        );
         that.currentState = dhw.dhwStatus.state == "On" ? true : false;
         that.log.debug(
           "Hot Water Temperature " +
@@ -1484,7 +1513,10 @@ EvohomeDhwAccessory.prototype = {
   },
 
   getHotWaterTemperature: function (callback) {
-    callback(null, this.currentTemperature);
+    callback(
+      null,
+      getValidHotWaterTemperature(this.log, this.name, this.currentTemperature)
+    );
   },
 
   getHotWaterStatus: function (callback) {
