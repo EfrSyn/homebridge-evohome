@@ -442,7 +442,9 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                   var oldCurrentTemp =
                                     this.myAccessories[i].thermostat
                                       .temperatureStatus.temperature;
-                                  var newCurrentTemp = toFiniteNumber(
+                                  var newCurrentTemp = getValidTemperature(
+                                    this.log,
+                                    this.myAccessories[i].name,
                                     thermostat.temperatureStatus.temperature
                                   );
                                   var oldTargetTemp =
@@ -497,7 +499,6 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                     );
                                   }
 
-                                  // notify homebridge of current temp and target because homekit's cached temperature might be wrong
                                   if (service) {
                                     // updateValue triggers a change event which notifies HomeKit
                                     if (newCurrentTemp !== null) {
@@ -506,14 +507,6 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                           Characteristic.CurrentTemperature
                                         )
                                         .updateValue(newCurrentTemp);
-                                    }
-
-                                    if (newTargetTemp !== null) {
-                                      service
-                                        .getCharacteristic(
-                                          Characteristic.TargetTemperature
-                                        )
-                                        .updateValue(newTargetTemp);
                                     }
 
                                     // if temperature or setpoint changed then CurrentHeatingCoolingState and TargetHeatingCoolingState might have changed too
@@ -817,13 +810,37 @@ function toFiniteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function logIgnoredTemperature(log, accessoryName, value) {
+  var message =
+    "Ignoring missing/invalid current temperature for zone " +
+    accessoryName +
+    ": " +
+    value;
+
+  if (log && typeof log.warn === "function") {
+    log.warn(message);
+  } else if (log) {
+    log(message);
+  }
+}
+
+function getValidTemperature(log, accessoryName, value) {
+  var validTemperature = toFiniteNumber(value);
+
+  if (validTemperature === null) {
+    logIgnoredTemperature(log, accessoryName, value);
+  }
+
+  return validTemperature;
+}
+
 EvohomeThermostatAccessory.prototype = {
   getCachedCurrentTemperature: function () {
     var currentTemperature =
       this.thermostat &&
       this.thermostat.temperatureStatus &&
       this.thermostat.temperatureStatus.temperature;
-    var validTemperature = toFiniteNumber(currentTemperature);
+    var validTemperature = getValidTemperature(this.log, this.name, currentTemperature);
 
     if (validTemperature !== null) {
       this.lastKnownCurrentTemperature = validTemperature;
@@ -1050,7 +1067,6 @@ EvohomeThermostatAccessory.prototype = {
 
   setTargetTemperature: function (value, callback) {
     var that = this;
-
     that.log("Request to set target temperature to " + value);
 
     that.targetTemperateToSet = value;
