@@ -17,7 +17,6 @@ var evohome = require("./lib/evohome.js");
 var Service, Characteristic, Formats, Units, Perms, PlatformAccessory, Categories, UUIDGen;
 var config;
 var FakeGatoHistoryService;
-const moment = require("moment");
 var CustomCharacteristic = {};
 const PLUGIN_NAME = "homebridge-evohome";
 const PLATFORM_NAME = "Evohome";
@@ -632,7 +631,7 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                     this.myAccessories[i].loggingService;
 
                                   //this.log("populating loggingService: " + loggingService);
-                                  //this.log(moment().unix() + " " + newCurrentTemp + " " + newTargetTemp);
+                                  //this.log(Math.floor(Date.now() / 1000) + " " + newCurrentTemp + " " + newTargetTemp);
                                   if (
                                     newCurrentTemp !== null &&
                                     newTargetTemp !== null
@@ -640,7 +639,7 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                     var valvePosition =
                                       newCurrentTemp >= newTargetTemp ? 0 : 100;
                                     loggingService.addEntry({
-                                      time: moment().unix(),
+                                      time: Math.floor(Date.now() / 1000),
                                       currentTemp: newCurrentTemp,
                                       setTemp: newTargetTemp,
                                       valvePosition: valvePosition,
@@ -760,7 +759,7 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                   this.myAccessories[i].loggingService;
 
                                 loggingService.addEntry({
-                                  time: moment().unix(),
+                                  time: Math.floor(Date.now() / 1000),
                                   currentTemp:
                                     this.myAccessories[i].currentTemperature,
                                   setTemp: 60, // TODO, random value
