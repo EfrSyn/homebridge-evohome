@@ -998,45 +998,6 @@ EvohomeThermostatAccessory.prototype = {
       .on("get", this.getTemperatureDisplayUnits.bind(this))
       .on("set", this.setTemperatureDisplayUnits.bind(this));
 
-    if (
-      !this.thermostatService.testCharacteristic(
-        CustomCharacteristic.ValvePosition
-      )
-    ) {
-      this.thermostatService.addCharacteristic(
-        CustomCharacteristic.ValvePosition
-      );
-    }
-    if (
-      !this.thermostatService.testCharacteristic(
-        CustomCharacteristic.ProgramCommand
-      )
-    ) {
-      this.thermostatService.addCharacteristic(
-        CustomCharacteristic.ProgramCommand
-      );
-    }
-    if (
-      !this.thermostatService.testCharacteristic(
-        CustomCharacteristic.ProgramData
-      )
-    ) {
-      this.thermostatService.addCharacteristic(
-        CustomCharacteristic.ProgramData
-      );
-    }
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ValvePosition)
-      .on("get", this.getValvePosition.bind(this));
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ProgramCommand)
-      .on("set", this.setProgramCommand.bind(this));
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ProgramData)
-      .on("get", this.getProgramData.bind(this));
   },
 
   getCachedCurrentTemperature: function () {
@@ -1422,27 +1383,7 @@ EvohomeThermostatAccessory.prototype = {
     // this.addOptionalCharacteristic(Characteristic.HeatingThresholdTemperature);
     // this.addOptionalCharacteristic(Characteristic.Name);
 
-    this.thermostatService.addCharacteristic(
-      CustomCharacteristic.ValvePosition
-    );
-    this.thermostatService.addCharacteristic(
-      CustomCharacteristic.ProgramCommand
-    );
-    this.thermostatService.addCharacteristic(CustomCharacteristic.ProgramData);
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ValvePosition)
-      .on("get", this.getValvePosition.bind(this));
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ProgramCommand)
-      .on("set", this.setProgramCommand.bind(this));
-
-    this.thermostatService
-      .getCharacteristic(CustomCharacteristic.ProgramData)
-      .on("get", this.getProgramData.bind(this));
-
-    return [informationService, this.thermostatService, this.loggingService];
+    return [informationService, this.thermostatService];
   },
 };
 
@@ -1640,12 +1581,7 @@ EvohomeDhwAccessory.prototype = {
       .on("get", this.getHotWaterStatus.bind(this))
       .on("set", this.setHotWaterStatus.bind(this));
 
-    return [
-      informationService,
-      this.tempSensor,
-      this.active,
-      this.loggingService,
-    ];
+    return [informationService, this.tempSensor, this.active];
   },
 };
 
