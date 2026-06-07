@@ -14,11 +14,13 @@
 "use strict";
 
 var evohome = require("./lib/evohome.js");
-var Service, Characteristic, Formats, Units, Perms;
+var Service, Characteristic, Formats, Units, Perms, PlatformAccessory, Categories, UUIDGen;
 var config;
 var FakeGatoHistoryService;
 const moment = require("moment");
 var CustomCharacteristic = {};
+const PLUGIN_NAME = "homebridge-evohome";
+const PLATFORM_NAME = "Evohome";
 
 module.exports = function (homebridge) {
   FakeGatoHistoryService = require("fakegato-history")(homebridge);
@@ -28,6 +30,9 @@ module.exports = function (homebridge) {
   Formats = homebridge.hap.Formats;
   Units = homebridge.hap.Units;
   Perms = homebridge.hap.Perms;
+  PlatformAccessory = homebridge.platformAccessory;
+  Categories = homebridge.hap.Categories;
+  UUIDGen = homebridge.hap.uuid;
 
   CustomCharacteristic.ValvePosition = class ValvePosition extends Characteristic {
     constructor() {
@@ -70,10 +75,15 @@ module.exports = function (homebridge) {
   CustomCharacteristic.ProgramData.UUID =
     "E863F12F-079E-48FF-8F27-9C2605A29F52";
 
-  homebridge.registerPlatform("homebridge-evohome", "Evohome", EvohomePlatform);
+  homebridge.registerPlatform(
+    PLUGIN_NAME,
+    PLATFORM_NAME,
+    EvohomePlatform,
+    true
+  );
 };
 
-function EvohomePlatform(log, config) {
+function EvohomePlatform(log, config, api) {
   this.sessionObject = null;
   this.name = config["name"];
   this.username = config["username"];
@@ -98,16 +108,27 @@ function EvohomePlatform(log, config) {
   this.systemMode = "";
 
   this.log = log;
+  this.api = api;
 
   this.updating = false;
+  this.discoveryComplete = false;
+  this.cachedPlatformAccessories = {};
+  this.myAccessories = [];
+
+  if (this.api) {
+    this.api.on("didFinishLaunching", this.discoverDevices.bind(this));
+  }
 }
 
 EvohomePlatform.prototype = {
-  accessories: function (callback) {
+  configureAccessory: function (accessory) {
+    this.cachedPlatformAccessories[accessory.UUID] = accessory;
+  },
+
+  discoverDevices: function () {
     this.log("Logging into Evohome...");
 
     var that = this;
-    // create the myAccessories array
     this.myAccessories = [];
 
     evohome
@@ -309,6 +330,7 @@ EvohomePlatform.prototype = {
                               var dhwSwitchAccessory = new EvohomeDhwAccessory(
                                 that,
                                 that.log,
+                                that.name + " Hot Water",
                                 locations[that.locationIndex].dhw["dhwId"],
                                 that.username,
                                 that.password,
@@ -317,16 +339,19 @@ EvohomePlatform.prototype = {
                               this.myAccessories.push(dhwSwitchAccessory);
                             }
 
-                            callback(this.myAccessories);
+                            this.syncPlatformAccessories();
 
-                            setInterval(
-                              that.renewSession.bind(this),
-                              session.refreshTokenInterval * 1000
-                            );
-                            setInterval(
-                              that.periodicUpdate.bind(this),
-                              this.cache_timeout * 1000
-                            );
+                            if (!this.discoveryComplete) {
+                              setInterval(
+                                that.renewSession.bind(this),
+                                session.refreshTokenInterval * 1000
+                              );
+                              setInterval(
+                                that.periodicUpdate.bind(this),
+                                this.cache_timeout * 1000
+                              );
+                              this.discoveryComplete = true;
+                            }
                           }.bind(this)
                         )
                         .fail(function (err) {
@@ -334,36 +359,74 @@ EvohomePlatform.prototype = {
                             "Error getting system mode status:\n",
                             err
                           );
-                          if (!this.childBridge) {
-                            callback([]);
-                          }
                         });
                     }.bind(this)
                   )
                   .fail(function (err) {
                     that.log.error("Error getting thermostats:\n", err);
-                    if (!this.childBridge) {
-                      callback([]);
-                    }
                   });
               }.bind(this)
             )
             .fail(function (err) {
               that.log.error("Error getting locations:\n", err);
-              if (!this.childBridge) {
-                callback([]);
-              }
             });
         }.bind(this)
       )
       .fail(function (err) {
         // tell me if login did not work!
         that.log.error("Error during login:\n", err);
-        if (!this.childBridge) {
-          callback([]);
-        }
       });
   },
+};
+
+EvohomePlatform.prototype.syncPlatformAccessories = function () {
+  var activeUUIDs = {};
+  var newAccessories = [];
+  var staleAccessories = [];
+  var existingUUID;
+
+  for (var i = 0; i < this.myAccessories.length; i++) {
+    var accessoryHandler = this.myAccessories[i];
+    var accessoryUUID = accessoryHandler.uuid;
+    var platformAccessory = this.cachedPlatformAccessories[accessoryUUID];
+
+    activeUUIDs[accessoryUUID] = true;
+
+    if (!platformAccessory) {
+      platformAccessory = new PlatformAccessory(
+        accessoryHandler.name,
+        accessoryUUID,
+        accessoryHandler.category
+      );
+      this.cachedPlatformAccessories[accessoryUUID] = platformAccessory;
+      newAccessories.push(platformAccessory);
+    }
+
+    accessoryHandler.bindPlatformAccessory(platformAccessory);
+  }
+
+  for (existingUUID in this.cachedPlatformAccessories) {
+    if (!activeUUIDs[existingUUID]) {
+      staleAccessories.push(this.cachedPlatformAccessories[existingUUID]);
+      delete this.cachedPlatformAccessories[existingUUID];
+    }
+  }
+
+  if (staleAccessories.length > 0) {
+    this.api.unregisterPlatformAccessories(
+      PLUGIN_NAME,
+      PLATFORM_NAME,
+      staleAccessories
+    );
+  }
+
+  if (newAccessories.length > 0) {
+    this.api.registerPlatformAccessories(
+      PLUGIN_NAME,
+      PLATFORM_NAME,
+      newAccessories
+    );
+  }
 };
 
 EvohomePlatform.prototype.renewSession = function () {
@@ -707,7 +770,9 @@ function EvohomeThermostatAccessory(
   interval_setTemperature,
   offsetMinutes
 ) {
-  this.uuid_base = systemId + ":" + deviceID;
+  this.uuid_base = systemId + ":" + device.zoneID + ":thermostat";
+  this.uuid = UUIDGen.generate(this.uuid_base);
+  this.category = Categories.THERMOSTAT;
   this.name = name;
 
   this.displayName = name; // fakegato
@@ -835,6 +900,105 @@ function getValidTemperature(log, accessoryName, value) {
 }
 
 EvohomeThermostatAccessory.prototype = {
+  bindPlatformAccessory: function (platformAccessory) {
+    this.platformAccessory = platformAccessory;
+
+    platformAccessory.context.name = this.name;
+    platformAccessory.context.type = "thermostat";
+    platformAccessory.context.systemId = this.systemId;
+    platformAccessory.context.zoneID = this.device.zoneID;
+
+    var informationService =
+      platformAccessory.getService(Service.AccessoryInformation) ||
+      platformAccessory.addService(Service.AccessoryInformation);
+
+    var strSerial = this.systemId + "-" + this.serial;
+    informationService
+      .setCharacteristic(Characteristic.Identify, this.name)
+      .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
+      .setCharacteristic(Characteristic.Model, this.model)
+      .setCharacteristic(Characteristic.Name, this.name)
+      .setCharacteristic(Characteristic.SerialNumber, strSerial);
+
+    this.thermostatService =
+      platformAccessory.getService(Service.Thermostat) ||
+      platformAccessory.addService(Service.Thermostat, this.name, "thermostat");
+
+    this.thermostatService
+      .setCharacteristic(Characteristic.Name, this.name)
+      .getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+      .on("get", this.getCurrentHeatingCoolingState.bind(this));
+
+    this.thermostatService
+      .getCharacteristic(Characteristic.TargetHeatingCoolingState)
+      .on("get", this.getTargetHeatingCooling.bind(this))
+      .on("set", this.setTargetHeatingCooling.bind(this));
+
+    this.thermostatService
+      .getCharacteristic(Characteristic.CurrentTemperature)
+      .on("get", this.getCurrentTemperature.bind(this))
+      .setProps({
+        minValue: 1,
+        maxValue: 50,
+        minStep: this.device.valueResolution,
+      });
+
+    this.thermostatService
+      .getCharacteristic(Characteristic.TargetTemperature)
+      .on("get", this.getTargetTemperature.bind(this))
+      .on("set", this.setTargetTemperature.bind(this))
+      .setProps({
+        minValue: this.device.minHeatSetpoint,
+        maxValue: this.device.maxHeatSetpoint,
+        minStep: this.device.valueResolution,
+      });
+
+    this.thermostatService
+      .getCharacteristic(Characteristic.TemperatureDisplayUnits)
+      .on("get", this.getTemperatureDisplayUnits.bind(this))
+      .on("set", this.setTemperatureDisplayUnits.bind(this));
+
+    if (
+      !this.thermostatService.testCharacteristic(
+        CustomCharacteristic.ValvePosition
+      )
+    ) {
+      this.thermostatService.addCharacteristic(
+        CustomCharacteristic.ValvePosition
+      );
+    }
+    if (
+      !this.thermostatService.testCharacteristic(
+        CustomCharacteristic.ProgramCommand
+      )
+    ) {
+      this.thermostatService.addCharacteristic(
+        CustomCharacteristic.ProgramCommand
+      );
+    }
+    if (
+      !this.thermostatService.testCharacteristic(
+        CustomCharacteristic.ProgramData
+      )
+    ) {
+      this.thermostatService.addCharacteristic(
+        CustomCharacteristic.ProgramData
+      );
+    }
+
+    this.thermostatService
+      .getCharacteristic(CustomCharacteristic.ValvePosition)
+      .on("get", this.getValvePosition.bind(this));
+
+    this.thermostatService
+      .getCharacteristic(CustomCharacteristic.ProgramCommand)
+      .on("set", this.setProgramCommand.bind(this));
+
+    this.thermostatService
+      .getCharacteristic(CustomCharacteristic.ProgramData)
+      .on("get", this.getProgramData.bind(this));
+  },
+
   getCachedCurrentTemperature: function () {
     var currentTemperature =
       this.thermostat &&
@@ -1247,13 +1411,16 @@ EvohomeThermostatAccessory.prototype = {
 function EvohomeDhwAccessory(
   platform,
   log,
+  name,
   dhwId,
   username,
   password,
   interval_getStatus
 ) {
-  this.uuid_base = dhwId;
-  this.name = platform.name + " Hot Water";
+  this.uuid_base = dhwId + ":dhw";
+  this.uuid = UUIDGen.generate(this.uuid_base);
+  this.category = Categories.SENSOR;
+  this.name = name;
   this.displayName = this.name;
   this.platform = platform;
   this.dhwId = dhwId;
@@ -1273,6 +1440,49 @@ function EvohomeDhwAccessory(
 }
 
 EvohomeDhwAccessory.prototype = {
+  bindPlatformAccessory: function (platformAccessory) {
+    this.platformAccessory = platformAccessory;
+
+    platformAccessory.context.name = this.name;
+    platformAccessory.context.type = "dhw";
+    platformAccessory.context.dhwId = this.dhwId;
+
+    var informationService =
+      platformAccessory.getService(Service.AccessoryInformation) ||
+      platformAccessory.addService(Service.AccessoryInformation);
+
+    informationService
+      .setCharacteristic(Characteristic.Identify, this.name)
+      .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
+      .setCharacteristic(Characteristic.Model, this.model)
+      .setCharacteristic(Characteristic.Name, this.name)
+      .setCharacteristic(Characteristic.SerialNumber, this.dhwId);
+
+    this.tempSensor =
+      platformAccessory.getService(Service.TemperatureSensor) ||
+      platformAccessory.addService(
+        Service.TemperatureSensor,
+        this.name,
+        "hot-water-temperature"
+      );
+
+    this.tempSensor
+      .getCharacteristic(Characteristic.CurrentTemperature)
+      .on("get", this.getHotWaterTemperature.bind(this));
+
+    this.tempSensor.setPrimaryService(true);
+
+    this.active =
+      platformAccessory.getService(Service.Switch) ||
+      platformAccessory.addService(Service.Switch, this.name + " Active", "dhw-switch");
+
+    this.active
+      .setCharacteristic(Characteristic.Name, this.name + " Active")
+      .getCharacteristic(Characteristic.On)
+      .on("get", this.getHotWaterStatus.bind(this))
+      .on("set", this.setHotWaterStatus.bind(this));
+  },
+
   periodicCheckStatus: function (callback) {
     var that = this;
     var session = that.platform.sessionObject;
@@ -1413,6 +1623,8 @@ function EvohomeSwitchAccessory(
   password
 ) {
   this.uuid_base = systemId + ":" + systemMode;
+  this.uuid = UUIDGen.generate(this.uuid_base);
+  this.category = Categories.SWITCH;
   this.name = name;
   this.systemId = systemId;
   this.systemMode = systemMode;
@@ -1425,6 +1637,36 @@ function EvohomeSwitchAccessory(
 }
 
 EvohomeSwitchAccessory.prototype = {
+  bindPlatformAccessory: function (platformAccessory) {
+    this.platformAccessory = platformAccessory;
+
+    platformAccessory.context.name = this.name;
+    platformAccessory.context.type = "switch";
+    platformAccessory.context.systemId = this.systemId;
+    platformAccessory.context.systemMode = this.systemMode;
+
+    var informationService =
+      platformAccessory.getService(Service.AccessoryInformation) ||
+      platformAccessory.addService(Service.AccessoryInformation);
+
+    informationService
+      .setCharacteristic(Characteristic.Identify, this.name)
+      .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
+      .setCharacteristic(Characteristic.Model, this.model)
+      .setCharacteristic(Characteristic.Name, this.name)
+      .setCharacteristic(Characteristic.SerialNumber, this.systemMode);
+
+    this.switchService =
+      platformAccessory.getService(Service.Switch) ||
+      platformAccessory.addService(Service.Switch, this.name, "mode-switch");
+
+    this.switchService
+      .setCharacteristic(Characteristic.Name, this.name)
+      .getCharacteristic(Characteristic.On)
+      .on("get", this.getActive.bind(this))
+      .on("set", this.setActive.bind(this));
+  },
+
   getActive: function (callback) {
     var that = this;
     that.log.debug("System mode " + that.systemMode + " is " + that.active);
