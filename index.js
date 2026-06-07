@@ -955,7 +955,6 @@ EvohomeThermostatAccessory.prototype = {
 
     var strSerial = this.systemId + "-" + this.serial;
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
@@ -1366,7 +1365,6 @@ EvohomeThermostatAccessory.prototype = {
     this.log.debug("Serial: " + strSerial);
 
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
@@ -1493,7 +1491,6 @@ EvohomeDhwAccessory.prototype = {
       platformAccessory.addService(Service.AccessoryInformation);
 
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
@@ -1618,7 +1615,6 @@ EvohomeDhwAccessory.prototype = {
     var informationService = new Service.AccessoryInformation();
 
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
@@ -1691,7 +1687,6 @@ EvohomeSwitchAccessory.prototype = {
       platformAccessory.addService(Service.AccessoryInformation);
 
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
@@ -1752,7 +1747,6 @@ EvohomeSwitchAccessory.prototype = {
     var informationService = new Service.AccessoryInformation();
 
     informationService
-      .setCharacteristic(Characteristic.Identify, this.name)
       .setCharacteristic(Characteristic.Manufacturer, "Honeywell")
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.Name, this.name)
