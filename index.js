@@ -122,6 +122,11 @@ function EvohomePlatform(log, config, api) {
 
 EvohomePlatform.prototype = {
   configureAccessory: function (accessory) {
+    this.log.debug(
+      "Restored cached accessory:",
+      accessory.displayName,
+      "(" + accessory.UUID + ")"
+    );
     this.cachedPlatformAccessories[accessory.UUID] = accessory;
   },
 
@@ -339,6 +344,11 @@ EvohomePlatform.prototype = {
                               this.myAccessories.push(dhwSwitchAccessory);
                             }
 
+                            this.log(
+                              "Discovered",
+                              this.myAccessories.length,
+                              "Evohome accessory handler(s)"
+                            );
                             this.syncPlatformAccessories();
 
                             if (!this.discoveryComplete) {
@@ -393,6 +403,11 @@ EvohomePlatform.prototype.syncPlatformAccessories = function () {
     activeUUIDs[accessoryUUID] = true;
 
     if (!platformAccessory) {
+      this.log(
+        "Registering new accessory:",
+        accessoryHandler.name,
+        "(" + accessoryUUID + ")"
+      );
       platformAccessory = new PlatformAccessory(
         accessoryHandler.name,
         accessoryUUID,
@@ -400,6 +415,12 @@ EvohomePlatform.prototype.syncPlatformAccessories = function () {
       );
       this.cachedPlatformAccessories[accessoryUUID] = platformAccessory;
       newAccessories.push(platformAccessory);
+    } else {
+      this.log.debug(
+        "Reusing cached accessory:",
+        accessoryHandler.name,
+        "(" + accessoryUUID + ")"
+      );
     }
 
     accessoryHandler.bindPlatformAccessory(platformAccessory);
@@ -407,12 +428,22 @@ EvohomePlatform.prototype.syncPlatformAccessories = function () {
 
   for (existingUUID in this.cachedPlatformAccessories) {
     if (!activeUUIDs[existingUUID]) {
+      this.log(
+        "Unregistering stale accessory:",
+        this.cachedPlatformAccessories[existingUUID].displayName,
+        "(" + existingUUID + ")"
+      );
       staleAccessories.push(this.cachedPlatformAccessories[existingUUID]);
       delete this.cachedPlatformAccessories[existingUUID];
     }
   }
 
   if (staleAccessories.length > 0) {
+    this.log(
+      "Unregistering",
+      staleAccessories.length,
+      "stale Homebridge accessory(ies)"
+    );
     this.api.unregisterPlatformAccessories(
       PLUGIN_NAME,
       PLATFORM_NAME,
@@ -421,12 +452,22 @@ EvohomePlatform.prototype.syncPlatformAccessories = function () {
   }
 
   if (newAccessories.length > 0) {
+    this.log(
+      "Registering",
+      newAccessories.length,
+      "new Homebridge accessory(ies)"
+    );
     this.api.registerPlatformAccessories(
       PLUGIN_NAME,
       PLATFORM_NAME,
       newAccessories
     );
   }
+
+  this.log(
+    "Active Homebridge accessories for Evohome:",
+    Object.keys(activeUUIDs).length
+  );
 };
 
 EvohomePlatform.prototype.renewSession = function () {
