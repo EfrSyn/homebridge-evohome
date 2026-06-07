@@ -16,14 +16,11 @@
 var evohome = require("./lib/evohome.js");
 var Service, Characteristic, Formats, Units, Perms, PlatformAccessory, Categories, UUIDGen;
 var config;
-var FakeGatoHistoryService;
 var CustomCharacteristic = {};
 const PLUGIN_NAME = "homebridge-evohome";
 const PLATFORM_NAME = "Evohome";
 
 module.exports = function (homebridge) {
-  FakeGatoHistoryService = require("fakegato-history")(homebridge);
-
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   Formats = homebridge.hap.Formats;
@@ -627,24 +624,6 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                       .getValue();
                                   }
 
-                                  var loggingService =
-                                    this.myAccessories[i].loggingService;
-
-                                  //this.log("populating loggingService: " + loggingService);
-                                  //this.log(Math.floor(Date.now() / 1000) + " " + newCurrentTemp + " " + newTargetTemp);
-                                  if (
-                                    newCurrentTemp !== null &&
-                                    newTargetTemp !== null
-                                  ) {
-                                    var valvePosition =
-                                      newCurrentTemp >= newTargetTemp ? 0 : 100;
-                                    loggingService.addEntry({
-                                      time: Math.floor(Date.now() / 1000),
-                                      currentTemp: newCurrentTemp,
-                                      setTemp: newTargetTemp,
-                                      valvePosition: valvePosition,
-                                    });
-                                  }
                                 }
                               } else if (
                                 !updatedAwayActive &&
@@ -754,20 +733,6 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                   "domesticHotWater"
                               ) {
                                 updatedHotWaterActive = true;
-
-                                var loggingService =
-                                  this.myAccessories[i].loggingService;
-
-                                loggingService.addEntry({
-                                  time: Math.floor(Date.now() / 1000),
-                                  currentTemp:
-                                    this.myAccessories[i].currentTemperature,
-                                  setTemp: 60, // TODO, random value
-                                  valvePosition: this.myAccessories[i]
-                                    .currentState
-                                    ? 100
-                                    : 0,
-                                });
                               }
                             }
                           }
@@ -831,10 +796,6 @@ function EvohomeThermostatAccessory(
   this.password = password;
 
   this.log = log;
-
-  this.loggingService = new FakeGatoHistoryService("thermo", this, {
-    storage: "fs",
-  });
 
   this.targetTemperateToSet = -1;
   this.lastKnownCurrentTemperature = toFiniteNumber(
@@ -1434,11 +1395,6 @@ function EvohomeDhwAccessory(
   this.password = password;
   this.currentTemperature = null;
   this.currentState = true;
-
-  // Enable logging of temperature
-  this.loggingService = new FakeGatoHistoryService("thermo", this, {
-    storage: "fs",
-  });
 
   setInterval(this.periodicCheckStatus.bind(this), interval_getStatus * 1000);
 }

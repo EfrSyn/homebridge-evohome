@@ -22,8 +22,7 @@
   },
   "dependencies": {
     "q": "~1.5.1",
-    "request": ">=2.68.0",
-    "fakegato-history": ">=0.6.1"
+    "request": ">=2.68.0"
   },
   "devDependencies": {
     "prettier": "3.6.2"
