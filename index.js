@@ -233,6 +233,7 @@ EvohomePlatform.prototype = {
                                           deviceID,
                                           thermostat,
                                           this.temperatureUnit,
+                                          this.temperatureAboveAsOff,
                                           this.username,
                                           this.password,
                                           this.interval_setTemperature,
@@ -600,6 +601,23 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                   }
 
                                   if (service) {
+                                    var updatedCurrentHeatingCoolingState =
+                                      newCurrentTemp !== null &&
+                                      newTargetTemp !== null &&
+                                      newCurrentTemp < newTargetTemp
+                                        ? 1
+                                        : 0;
+                                    var updatedTargetHeatingCoolingState =
+                                      (newTargetTemp !== null &&
+                                        newTargetTemp <= 5) ||
+                                      (this.myAccessories[i]
+                                        .temperatureAboveAsOff &&
+                                        newTargetTemp !== null &&
+                                        newCurrentTemp !== null &&
+                                        newTargetTemp <= newCurrentTemp)
+                                        ? 0
+                                        : 1;
+
                                     // updateValue triggers a change event which notifies HomeKit
                                     if (newCurrentTemp !== null) {
                                       service
@@ -609,19 +627,23 @@ EvohomePlatform.prototype.periodicUpdate = function () {
                                         .updateValue(newCurrentTemp);
                                     }
 
-                                    // if temperature or setpoint changed then CurrentHeatingCoolingState and TargetHeatingCoolingState might have changed too
-                                    // getValue will update HomeKit if the value is different to homebridge's cached value
+                                    // Homebridge v2 removed Characteristic#getValue(),
+                                    // so update derived states explicitly.
                                     service
                                       .getCharacteristic(
                                         Characteristic.CurrentHeatingCoolingState
                                       )
-                                      .getValue();
+                                      .updateValue(
+                                        updatedCurrentHeatingCoolingState
+                                      );
 
                                     service
                                       .getCharacteristic(
                                         Characteristic.TargetHeatingCoolingState
                                       )
-                                      .getValue();
+                                      .updateValue(
+                                        updatedTargetHeatingCoolingState
+                                      );
                                   }
 
                                 }
@@ -770,6 +792,7 @@ function EvohomeThermostatAccessory(
   deviceID,
   thermostat,
   temperatureUnit,
+  temperatureAboveAsOff,
   username,
   password,
   interval_setTemperature,
@@ -790,6 +813,7 @@ function EvohomeThermostatAccessory(
 
   this.thermostat = thermostat;
   this.temperatureUnit = temperatureUnit;
+  this.temperatureAboveAsOff = temperatureAboveAsOff;
 
   this.platform = platform;
   this.username = username;
